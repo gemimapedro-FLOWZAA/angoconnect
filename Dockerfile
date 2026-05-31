@@ -28,6 +28,14 @@ ENV SUPABASE_SERVICE_ROLE_KEY=placeholder
 ENV STRIPE_SECRET_KEY=
 ENV ANTHROPIC_API_KEY=
 ENV NEXT_PUBLIC_APP_URL=https://angoconnect.flowzaa.com
+# Sentry: build sem auth token e sem org/project — silenciar erros de upload
+# e qualquer erro de plugin (build local não usa Sentry; só prod runtime).
+ENV SENTRY_AUTH_TOKEN=
+ENV SENTRY_DISABLE_AUTO_UPLOAD=true
+ENV SENTRY_DSN=
+ENV NEXT_PUBLIC_SENTRY_DSN=
+# Heap até 2GB (Coolify VPS pode ter RAM limitada — next build OOM = exit 1)
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 RUN npm run build
 
 # --- runtime -----------------------------------------------------------------
