@@ -1,14 +1,30 @@
+# =========================================================================
+# AngoConnect — Self-host Supabase + App + Worker (Coolify-ready)
+# =========================================================================
+# - Single domain: angoconnect.flowzaa.com (apenas `app` exposto via Coolify FQDN)
+# - Kong / Postgres / Auth / Redis ficam internos na docker network
+# - Browser fala com Supabase via /supabase/* (rewrite no Next.js)
+#
+# Coolify configura FQDN no service `app` (porta 3000) e gere Traefik/Caddy.
+# Volumes persistentes via Coolify automaticamente.
+# =========================================================================
+
 x-app-env: &app-env
   NODE_ENV: production
-  NEXT_PUBLIC_SUPABASE_URL: https://angoconnect.flowzaa.com
+  # Browser hits Next.js que reescreve para Kong internamente
+  NEXT_PUBLIC_SUPABASE_URL: https://angoconnect.flowzaa.com/supabase
+  NEXT_PUBLIC_APP_URL: https://angoconnect.flowzaa.com
+  # Server-side: Next.js reescreve aqui (rede docker interna)
+  SUPABASE_INTERNAL_URL: http://kong:8000
   NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY}
   SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
-  NEXT_PUBLIC_APP_URL: https://app.angoconnect.flowzaa.com
   REDIS_URL: redis://redis:6379
-  CRON_SECRET: ${CRON_SECRET:-${SERVICE_ROLE_KEY}}
+  CRON_SECRET: ${CRON_SECRET}
+  # Opcionais — vazios = features inactivas
   RESEND_API_KEY: ${RESEND_API_KEY:-}
-  RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-no-reply@flowzaa.com}
+  RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-no-reply@angoconnect.flowzaa.com}
   RESEND_FROM_NAME: AngoConnect
+  RESEND_WEBHOOK_SECRET: ${RESEND_WEBHOOK_SECRET:-}
   STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
   STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
@@ -32,12 +48,13 @@ services:
       JWT_EXP: 3600
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # Migrations aplicadas após init do Supabase (alphanumeric ordering)
       - ./supabase/migrations:/docker-entrypoint-initdb.d/migrations:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres -h localhost']
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
 
   auth:
     image: supabase/gotrue:v2.158.1
@@ -48,17 +65,18 @@ services:
     environment:
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
-      API_EXTERNAL_URL: https://angoconnect.flowzaa.com
+      API_EXTERNAL_URL: https://angoconnect.flowzaa.com/supabase
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@postgres:5432/postgres?search_path=auth
-      GOTRUE_SITE_URL: https://app.angoconnect.flowzaa.com
-      GOTRUE_URI_ALLOW_LIST: https://app.angoconnect.flowzaa.com,https://app.angoconnect.flowzaa.com/auth/callback
+      GOTRUE_SITE_URL: https://angoconnect.flowzaa.com
+      GOTRUE_URI_ALLOW_LIST: https://angoconnect.flowzaa.com,https://angoconnect.flowzaa.com/auth/callback
       GOTRUE_JWT_AUD: authenticated
       GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
       GOTRUE_JWT_EXP: 3600
       GOTRUE_JWT_SECRET: ${JWT_SECRET}
       GOTRUE_EXTERNAL_EMAIL_ENABLED: 'true'
       GOTRUE_MAILER_AUTOCONFIRM: 'true'
+      GOTRUE_DISABLE_SIGNUP: 'false'
 
   rest:
     image: postgrest/postgrest:v12.2.0
@@ -71,6 +89,8 @@ services:
       PGRST_DB_SCHEMAS: public,storage,graphql_public
       PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
+      PGRST_APP_SETTINGS_JWT_EXP: 3600
 
   kong:
     image: kong:2.8.1
@@ -79,20 +99,16 @@ services:
     environment:
       KONG_DATABASE: 'off'
       KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
       KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
       DASHBOARD_USERNAME: ${DASHBOARD_USERNAME:-supabase}
       DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD:-supabase}
     volumes:
       - ./supabase/kong.yml:/home/kong/kong.yml:ro
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.angoconnect-api.rule=Host(`angoconnect.flowzaa.com`)
-      - traefik.http.routers.angoconnect-api.entrypoints=https
-      - traefik.http.routers.angoconnect-api.tls=true
-      - traefik.http.routers.angoconnect-api.tls.certresolver=letsencrypt
-      - traefik.http.services.angoconnect-api.loadbalancer.server.port=8000
 
   redis:
     image: redis:7-alpine
@@ -100,6 +116,7 @@ services:
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
 
   app:
     build:
@@ -113,13 +130,10 @@ services:
         condition: service_healthy
     environment:
       <<: *app-env
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.angoconnect-app.rule=Host(`app.angoconnect.flowzaa.com`)
-      - traefik.http.routers.angoconnect-app.entrypoints=https
-      - traefik.http.routers.angoconnect-app.tls=true
-      - traefik.http.routers.angoconnect-app.tls.certresolver=letsencrypt
-      - traefik.http.services.angoconnect-app.loadbalancer.server.port=3000
+    # Coolify auto-detecta porta + adiciona Traefik/Caddy labels via FQDN.
+    # Para deploy manual sem Coolify, expor:
+    # ports:
+    #   - "3000:3000"
 
   worker:
     build:
