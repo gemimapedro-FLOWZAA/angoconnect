@@ -1,0 +1,86 @@
+{
+    "title": "LinkedIn Scraper Input",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "mode": {
+            "title": "Modo de operação",
+            "type": "string",
+            "description": "search = pesquisa empresas por filtros e depois enriquece com decisores. from_companies = recebe lista de empresas já conhecidas (vindas do irgc-scraper) e procura decisores.",
+            "enum": ["search", "from_companies"],
+            "default": "search"
+        },
+        "searchFilters": {
+            "title": "Filtros de pesquisa (mode=search)",
+            "type": "object",
+            "description": "Critérios para descobrir empresas angolanas no LinkedIn.",
+            "editor": "json",
+            "properties": {
+                "provincia": {
+                    "title": "Províncias alvo",
+                    "type": "array",
+                    "description": "Lista de províncias do enum (Luanda, Benguela, ...). Vazio = todas.",
+                    "items": { "type": "string" },
+                    "default": ["Luanda"]
+                },
+                "sector": {
+                    "title": "Sectores alvo",
+                    "type": "array",
+                    "description": "Sectores do enum canónico (oil_gas, banking, ...). Vazio = todos.",
+                    "items": { "type": "string" },
+                    "default": []
+                },
+                "minHeadcount": {
+                    "title": "Headcount mínimo",
+                    "type": "integer",
+                    "description": "Tamanho mínimo de empresa (nº trabalhadores LinkedIn).",
+                    "default": 50,
+                    "minimum": 1
+                },
+                "titlesIncluded": {
+                    "title": "Títulos alvo",
+                    "type": "array",
+                    "description": "Títulos a procurar (CEO, Director Comercial, CFO, ...). Misto PT/EN aceite.",
+                    "items": { "type": "string" },
+                    "default": ["CEO", "Director Comercial", "CFO", "Director de Compras"]
+                }
+            }
+        },
+        "companyTargets": {
+            "title": "Empresas alvo (mode=from_companies)",
+            "type": "array",
+            "description": "Lista de empresas para enriquecer com decisores. Cada uma pode trazer name, nif e linkedinUrl.",
+            "editor": "json",
+            "default": []
+        },
+        "maxContactsPerCompany": {
+            "title": "Máximo de contactos por empresa",
+            "type": "integer",
+            "description": "Cap nº de decisores a recolher por empresa.",
+            "default": 5,
+            "minimum": 1,
+            "maximum": 50
+        },
+        "maxCompanies": {
+            "title": "Máximo de empresas",
+            "type": "integer",
+            "description": "Limite total de empresas a processar nesta run.",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 10000
+        },
+        "linkedinCompanyActorId": {
+            "title": "Actor ID — LinkedIn Company (Apify Store)",
+            "type": "string",
+            "description": "ID do Actor da Apify Store para pesquisa/scrape de empresas LinkedIn (ex: 'dev_fusion/linkedin-company-scraper'). Override do env LINKEDIN_COMPANY_ACTOR_ID.",
+            "editor": "textfield"
+        },
+        "linkedinPeopleActorId": {
+            "title": "Actor ID — LinkedIn People (Apify Store)",
+            "type": "string",
+            "description": "ID do Actor da Apify Store para scrape de perfis de pessoas LinkedIn (ex: 'apimaestro/linkedin-profile-scraper'). Override do env LINKEDIN_PEOPLE_ACTOR_ID.",
+            "editor": "textfield"
+        }
+    },
+    "required": ["mode"]
+}

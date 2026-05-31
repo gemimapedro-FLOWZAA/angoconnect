@@ -1,0 +1,24 @@
+{
+    "name": "email-enricher",
+    "version": "0.1.0",
+    "type": "module",
+    "private": true,
+    "description": "Apify Actor que descobre emails corporativos de contactos angolanos via padrões + verificação SMTP, devolvendo items no contrato IRGCDatasetItem do AngoConnect.",
+    "scripts": {
+        "start": "node --import tsx src/main.ts",
+        "build": "tsc",
+        "deploy": "apify push",
+        "lint": "tsc --noEmit"
+    },
+    "dependencies": {
+        "apify": "^3.2.6"
+    },
+    "devDependencies": {
+        "@types/node": "^20.17.10",
+        "tsx": "^4.19.2",
+        "typescript": "^5.7.2"
+    },
+    "engines": {
+        "node": ">=20"
+    }
+}

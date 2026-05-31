@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.local
+storage
+apify_storage
+crawlee_storage
+*.log
+.DS_Store
+README.md
+.vscode
+.idea

@@ -1,0 +1,39 @@
+{
+    "actorSpecification": 1,
+    "name": "email-enricher",
+    "title": "Email Enricher — Contactos Angolanos (AngoConnect)",
+    "description": "Descobre emails corporativos a partir de empresa+contactos: extrai domínio do website, gera candidatos com 8 padrões PT/AO, verifica via SMTP RCPT TO. Exporta um item por empresa no contrato IRGCDatasetItem (source='manual').",
+    "version": "0.1",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "ts-empty"
+    },
+    "input": "./INPUT_SCHEMA.json",
+    "dockerfile": "../Dockerfile",
+    "storages": {
+        "dataset": {
+            "actorSpecification": 1,
+            "title": "Empresas com emails enriquecidos",
+            "description": "Items que seguem o contrato IRGCDatasetItem, com contactos enriquecidos em raw.contacts",
+            "views": {
+                "overview": {
+                    "title": "Resumo",
+                    "transformation": {
+                        "fields": [
+                            "name",
+                            "nif",
+                            "sector",
+                            "provincia",
+                            "website",
+                            "source",
+                            "scraped_at"
+                        ]
+                    },
+                    "display": {
+                        "component": "table"
+                    }
+                }
+            }
+        }
+    }
+}

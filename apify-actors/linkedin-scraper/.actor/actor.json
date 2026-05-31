@@ -1,0 +1,39 @@
+{
+    "actorSpecification": 1,
+    "name": "linkedin-scraper",
+    "title": "LinkedIn Scraper — Decisores Angolanos (AngoConnect)",
+    "description": "Orquestra Actors públicos da Apify Store para descobrir empresas e decisores angolanos no LinkedIn. Normaliza tudo para o contrato canónico DatasetItem (shape flat) partilhado com o backend AngoConnect.",
+    "version": "0.1",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "ts-node"
+    },
+    "input": "./INPUT_SCHEMA.json",
+    "dockerfile": "../Dockerfile",
+    "storages": {
+        "dataset": {
+            "actorSpecification": 1,
+            "title": "Empresas LinkedIn + Decisores",
+            "description": "Items que seguem o contrato canónico DatasetItem (source='linkedin')",
+            "views": {
+                "overview": {
+                    "title": "Resumo",
+                    "transformation": {
+                        "fields": [
+                            "name",
+                            "nif",
+                            "sector",
+                            "provincia",
+                            "website",
+                            "source",
+                            "scraped_at"
+                        ]
+                    },
+                    "display": {
+                        "component": "table"
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,39 @@
+{
+    "actorSpecification": 1,
+    "name": "irgc-scraper",
+    "title": "IRGC Scraper — Empresas Angolanas (AngoConnect)",
+    "description": "Recolhe empresas registadas em portais públicos angolanos (GUE / BUE / SIAC / INE) e exporta para o catálogo AngoConnect com o contrato IRGCDatasetItem.",
+    "version": "0.1",
+    "buildTag": "latest",
+    "meta": {
+        "templateId": "ts-playwright"
+    },
+    "input": "./INPUT_SCHEMA.json",
+    "dockerfile": "../Dockerfile",
+    "storages": {
+        "dataset": {
+            "actorSpecification": 1,
+            "title": "Empresas IRGC",
+            "description": "Items que seguem o contrato IRGCDatasetItem",
+            "views": {
+                "overview": {
+                    "title": "Resumo",
+                    "transformation": {
+                        "fields": [
+                            "name",
+                            "nif",
+                            "sector",
+                            "provincia",
+                            "website",
+                            "source",
+                            "scraped_at"
+                        ]
+                    },
+                    "display": {
+                        "component": "table"
+                    }
+                }
+            }
+        }
+    }
+}

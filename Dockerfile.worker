@@ -1,0 +1,56 @@
+# =========================================================================
+# AngoConnect — Worker BullMQ Dockerfile
+# =========================================================================
+# Imagem para correr o worker `sequence-runner` em Railway / Fly.io / Render.
+# O worker processa jobs de envio (email + WhatsApp) da queue BullMQ.
+#
+# Build: docker build -f Dockerfile.worker -t angoconnect-worker .
+# Run:   docker run --env-file .env.production angoconnect-worker
+#
+# Env vars necessárias (subset do .env.local — o worker NÃO precisa de Stripe
+# ou tokens públicos):
+#   - NEXT_PUBLIC_SUPABASE_URL
+#   - SUPABASE_SERVICE_ROLE_KEY
+#   - REDIS_URL
+#   - RESEND_API_KEY
+#   - RESEND_FROM_EMAIL / RESEND_FROM_NAME / RESEND_REPLY_TO
+#   - APIFY_TOKEN (caso o worker venha a invocar Apify directamente)
+#   - WORKER_CONCURRENCY (opcional, default 5)
+# =========================================================================
+
+FROM node:20-alpine AS base
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# --- deps --------------------------------------------------------------------
+FROM base AS deps
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=optional --legacy-peer-deps
+
+# --- runtime -----------------------------------------------------------------
+FROM base AS runner
+ENV NODE_ENV=production
+COPY --from=deps /app/node_modules ./node_modules
+COPY lib ./lib
+COPY tsconfig.json ./
+COPY package.json ./
+
+# Healthcheck via process check — o worker não expõe HTTP. Railway/Fly podem
+# usar este script como liveness probe.
+COPY <<'EOF' /app/healthcheck.sh
+#!/bin/sh
+# Aceita "ok" se o processo `node` ainda existir.
+pgrep -f "sequence-runner" > /dev/null && echo "ok" || exit 1
+EOF
+RUN chmod +x /app/healthcheck.sh
+
+# Adiciona um user não-root para reduzir superfície de ataque.
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 worker
+USER worker
+
+# Liveness check para Railway/Fly (verifica que o processo existe).
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD /app/healthcheck.sh
+
+CMD ["npx", "tsx", "lib/queue/workers/sequence-runner.ts"]

@@ -1,0 +1,49 @@
+{
+    "title": "IRGC Scraper Input",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "startUrls": {
+            "title": "URLs iniciais",
+            "type": "array",
+            "description": "Páginas de listagem de empresas do portal IRGC/GUE/BUE/SIAC/INE. Confirmar URL real antes do primeiro run.",
+            "editor": "requestListSources",
+            "prefill": [
+                { "url": "https://guicheunico.gov.ao/empresas" }
+            ]
+        },
+        "maxCompanies": {
+            "title": "Máximo de empresas",
+            "type": "integer",
+            "description": "Limite total de empresas a recolher nesta run.",
+            "default": 1000,
+            "minimum": 1,
+            "maximum": 100000
+        },
+        "sectorFilter": {
+            "title": "Filtro por sector",
+            "type": "array",
+            "description": "Apenas empresas cujo sector mapeado pertença a esta lista. Vazio = todos.",
+            "editor": "stringList",
+            "default": [],
+            "uniqueItems": true
+        },
+        "provinciaFilter": {
+            "title": "Filtro por província",
+            "type": "array",
+            "description": "Apenas empresas das províncias listadas. Vazio = todas.",
+            "editor": "stringList",
+            "default": [],
+            "uniqueItems": true
+        },
+        "requestsPerSecond": {
+            "title": "Requests por segundo",
+            "type": "integer",
+            "description": "Rate limit. Domínios .gov.ao e .co.ao forçam máximo de 1.",
+            "default": 1,
+            "minimum": 1,
+            "maximum": 5
+        }
+    },
+    "required": ["startUrls"]
+}

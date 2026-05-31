@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Typecheck + Tests + Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true # ESLint warnings não bloqueiam
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build (dry-run com env vars dummy)
+        run: npm run build
+        env:
+          # Vars dummy para que o build colete páginas sem rebentar.
+          # NÃO usar em produção — apenas para CI.
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-service-key
+          STRIPE_SECRET_KEY: sk_test_ci_dummy
+          STRIPE_WEBHOOK_SECRET: whsec_ci_dummy
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_ci_dummy
+          STRIPE_PRICE_STARTER: price_ci_starter
+          STRIPE_PRICE_GROWTH: price_ci_growth
+          STRIPE_PRICE_PRO: price_ci_pro
+          RESEND_API_KEY: re_ci_dummy
+          RESEND_FROM_EMAIL: ci@example.com
+          APIFY_TOKEN: apify_ci_dummy
+          APIFY_WEBHOOK_SECRET: ci-apify-secret
+          REDIS_URL: redis://localhost:6379
+          ANTHROPIC_API_KEY: sk-ant-ci-dummy
+          META_APP_SECRET: ci-meta-secret
+          CRON_SECRET: ci-cron-secret
+          NEXT_PUBLIC_APP_URL: http://localhost:3000

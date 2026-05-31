@@ -1,0 +1,71 @@
+{
+    "title": "Email Enricher Input",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "companies": {
+            "title": "Empresas a enriquecer",
+            "type": "array",
+            "description": "Lista de empresas com os respectivos contactos a descobrir. Cada contacto requer `full_name`; `title` é opcional. Empresas sem `website` são puladas (não dá para inferir domínio).",
+            "editor": "json",
+            "prefill": [
+                {
+                    "name": "Sonangol",
+                    "nif": "5417000001",
+                    "provincia": "Luanda",
+                    "sector": "oil_gas",
+                    "website": "https://sonangol.co.ao",
+                    "contacts": [
+                        { "full_name": "João Manuel", "title": "Director Comercial" },
+                        { "full_name": "Maria Pinto", "title": "CFO" }
+                    ]
+                }
+            ]
+        },
+        "smtpVerify": {
+            "title": "Verificação SMTP",
+            "type": "boolean",
+            "description": "Quando ligado, faz MX lookup + handshake SMTP RCPT TO para cada candidato. Desliga em ambientes onde a saída TCP porta 25 está bloqueada (Apify Free) ou quando só queres padrões.",
+            "default": true
+        },
+        "maxPatternsPerContact": {
+            "title": "Máximo de padrões por contacto",
+            "type": "integer",
+            "description": "Limite de candidatos avaliados por contacto (ordem fixa, 8 padrões PT/AO). Em modo SMTP, parar no primeiro 250 OK.",
+            "default": 8,
+            "minimum": 1,
+            "maximum": 12
+        },
+        "timeoutMsPerSmtp": {
+            "title": "Timeout SMTP (ms)",
+            "type": "integer",
+            "description": "Timeout por handshake SMTP. Servidores .ao costumam ser lentos.",
+            "default": 5000,
+            "minimum": 1000,
+            "maximum": 30000
+        },
+        "smtpFromAddress": {
+            "title": "MAIL FROM address",
+            "type": "string",
+            "description": "Endereço usado no comando MAIL FROM durante o handshake SMTP. Deve ser um domínio próprio para evitar reverse-DNS suspeito. Default: 'noreply@angoconnect.ao'.",
+            "default": "noreply@angoconnect.ao",
+            "editor": "textfield"
+        },
+        "smtpHelloHostname": {
+            "title": "HELO hostname",
+            "type": "string",
+            "description": "Hostname enviado no HELO/EHLO. Default: 'angoconnect.ao'.",
+            "default": "angoconnect.ao",
+            "editor": "textfield"
+        },
+        "requestsPerSecondPerDomain": {
+            "title": "SMTP connections/seg por domínio",
+            "type": "integer",
+            "description": "Rate limit por domínio destino. Evita ban / greylist. Recomendado <= 3.",
+            "default": 3,
+            "minimum": 1,
+            "maximum": 5
+        }
+    },
+    "required": ["companies"]
+}

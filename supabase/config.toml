@@ -1,0 +1,114 @@
+# ============================================================================
+# AngoConnect — Configuração do Supabase CLI
+# ----------------------------------------------------------------------------
+# Plataforma SaaS B2B de prospecção comercial para Angola.
+# Esta configuração rege o stack local (`supabase start`).
+# ============================================================================
+
+project_id = "angoconnect"
+
+# ----------------------------------------------------------------------------
+# API REST / GraphQL (PostgREST + pg_graphql)
+# ----------------------------------------------------------------------------
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+# ----------------------------------------------------------------------------
+# Base de dados Postgres
+# ----------------------------------------------------------------------------
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.pooler]
+enabled = false
+port = 54329
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+# ----------------------------------------------------------------------------
+# Realtime
+# ----------------------------------------------------------------------------
+[realtime]
+enabled = true
+
+# ----------------------------------------------------------------------------
+# Studio (UI de gestão local)
+# ----------------------------------------------------------------------------
+[studio]
+enabled = true
+port = 54323
+api_url = "http://127.0.0.1"
+
+# ----------------------------------------------------------------------------
+# Inbucket (caixa de email local para testar magic links / signup)
+# ----------------------------------------------------------------------------
+[inbucket]
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+# ----------------------------------------------------------------------------
+# Storage (uploads — logos de empresas, avatars)
+# ----------------------------------------------------------------------------
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+# ----------------------------------------------------------------------------
+# Auth — começamos só com email/password. Google/LinkedIn ficam para fase 2.
+# ----------------------------------------------------------------------------
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+enable_anonymous_sign_ins = false
+enable_manual_linking = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+secure_password_change = false
+max_frequency = "1s"
+otp_length = 6
+otp_expiry = 3600
+
+[auth.sms]
+enable_signup = false
+enable_confirmations = false
+
+# Provider Google (preparado, desactivado por defeito até config OAuth estar pronta)
+[auth.external.google]
+enabled = false
+client_id = ""
+secret = ""
+redirect_uri = ""
+
+# ----------------------------------------------------------------------------
+# Edge Functions (Deno) — placeholder para Stripe webhooks futuros
+# ----------------------------------------------------------------------------
+[edge_runtime]
+enabled = true
+policy = "oneshot"
+inspector_port = 8083
+
+# ----------------------------------------------------------------------------
+# Analytics local (logs)
+# ----------------------------------------------------------------------------
+[analytics]
+enabled = false
+port = 54327
+vector_port = 54328
+backend = "postgres"

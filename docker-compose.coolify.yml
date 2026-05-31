@@ -1,0 +1,138 @@
+x-app-env: &app-env
+  NODE_ENV: production
+  NEXT_PUBLIC_SUPABASE_URL: https://angoconnect.flowzaa.com
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: ${ANON_KEY}
+  SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+  NEXT_PUBLIC_APP_URL: https://app.angoconnect.flowzaa.com
+  REDIS_URL: redis://redis:6379
+  CRON_SECRET: ${CRON_SECRET:-${SERVICE_ROLE_KEY}}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL:-no-reply@flowzaa.com}
+  RESEND_FROM_NAME: AngoConnect
+  STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+  STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
+  STRIPE_PRICE_STARTER: ${STRIPE_PRICE_STARTER:-}
+  STRIPE_PRICE_GROWTH: ${STRIPE_PRICE_GROWTH:-}
+  STRIPE_PRICE_PRO: ${STRIPE_PRICE_PRO:-}
+  APIFY_TOKEN: ${APIFY_TOKEN:-}
+  APIFY_WEBHOOK_SECRET: ${APIFY_WEBHOOK_SECRET:-}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  META_APP_SECRET: ${META_APP_SECRET:-}
+  NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+
+services:
+  postgres:
+    image: supabase/postgres:15.6.1.146
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: postgres
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXP: 3600
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./supabase/migrations:/docker-entrypoint-initdb.d/migrations:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -h localhost']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  auth:
+    image: supabase/gotrue:v2.158.1
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: https://angoconnect.flowzaa.com
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@postgres:5432/postgres?search_path=auth
+      GOTRUE_SITE_URL: https://app.angoconnect.flowzaa.com
+      GOTRUE_URI_ALLOW_LIST: https://app.angoconnect.flowzaa.com,https://app.angoconnect.flowzaa.com/auth/callback
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: 'true'
+      GOTRUE_MAILER_AUTOCONFIRM: 'true'
+
+  rest:
+    image: postgrest/postgrest:v12.2.0
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@postgres:5432/postgres
+      PGRST_DB_SCHEMAS: public,storage,graphql_public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+
+  kong:
+    image: kong:2.8.1
+    restart: unless-stopped
+    depends_on: [auth, rest]
+    environment:
+      KONG_DATABASE: 'off'
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      DASHBOARD_USERNAME: ${DASHBOARD_USERNAME:-supabase}
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD:-supabase}
+    volumes:
+      - ./supabase/kong.yml:/home/kong/kong.yml:ro
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.angoconnect-api.rule=Host(`angoconnect.flowzaa.com`)
+      - traefik.http.routers.angoconnect-api.entrypoints=https
+      - traefik.http.routers.angoconnect-api.tls=true
+      - traefik.http.routers.angoconnect-api.tls.certresolver=letsencrypt
+      - traefik.http.services.angoconnect-api.loadbalancer.server.port=8000
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      kong:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.angoconnect-app.rule=Host(`app.angoconnect.flowzaa.com`)
+      - traefik.http.routers.angoconnect-app.entrypoints=https
+      - traefik.http.routers.angoconnect-app.tls=true
+      - traefik.http.routers.angoconnect-app.tls.certresolver=letsencrypt
+      - traefik.http.services.angoconnect-app.loadbalancer.server.port=3000
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    restart: unless-stopped
+    depends_on:
+      kong:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *app-env
+
+volumes:
+  postgres-data:
