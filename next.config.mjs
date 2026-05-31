@@ -13,10 +13,26 @@ import bundleAnalyzer from '@next/bundle-analyzer';
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // NB: NÃO usar `output: 'standalone'` aqui — o Dockerfile copia .next +
+  // node_modules em modo regular. Mudar para standalone exige actualizar
+  // o Dockerfile para copiar de `.next/standalone/`.
   experimental: {
     serverActions: {
       bodySizeLimit: '2mb',
     },
+  },
+  // Single-domain self-host: o browser fala com Supabase via /supabase/* na
+  // mesma origem. Em runtime, Next reescreve para o Kong dentro da rede
+  // docker. Activado apenas quando SUPABASE_INTERNAL_URL está definido.
+  async rewrites() {
+    const internalSupabase = process.env.SUPABASE_INTERNAL_URL;
+    if (!internalSupabase) return [];
+    return [
+      {
+        source: '/supabase/:path*',
+        destination: `${internalSupabase}/:path*`,
+      },
+    ];
   },
 };
 
